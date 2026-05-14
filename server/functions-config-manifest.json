@@ -1,1 +1,1 @@
-{"version":1,"functions":{"/explore":{},"/api/generate":{},"/cities":{},"/cities/[cityId]":{},"/submit":{},"/":{},"/templates":{},"/templates/[templateId]":{}}}
+{"version":1,"functions":{"/explore":{},"/api/generate":{},"/cities/[cityId]":{},"/cities":{},"/submit":{},"/templates/[templateId]":{},"/templates":{},"/":{}}}
