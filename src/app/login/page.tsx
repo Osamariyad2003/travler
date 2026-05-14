@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
 import { useAuthUser } from "@/lib/auth-client";
 import { isFirebaseConfigured, getFirebaseAuth } from "@/lib/firebase";
@@ -36,7 +36,7 @@ function getAuthErrorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNext(searchParams?.get("next") ?? null);
@@ -258,5 +258,13 @@ export default function LoginPage() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-sm text-cocoa-500">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
