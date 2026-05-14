@@ -13,7 +13,7 @@
     "seed": "tsx scripts/seed-firestore.ts",
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
     "predeploy": "npm run build",
-    "deploy": "npx rimraf dist/cache && gh-pages -d dist"
+    "deploy": "npx rimraf .next/cache && gh-pages -d .next"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",
