@@ -32,6 +32,18 @@ simple 2D map.
 - Firebase Authentication structure (email + Google)
 - Works in mock mode when Firebase is not configured
 
+## Screenshots
+
+| Landing Page | City Map View |
+| :---: | :---: |
+| ![Landing Page](./screenshots/01-landing-page.png) | ![City Map View](./screenshots/02-city-map-view.png) |
+| **Place Details Popup** | **Walking Routes Panel** |
+| ![Place Details Popup](./screenshots/03-place-details-popup.png) | ![Walking Routes Panel](./screenshots/04-walking-routes-panel.png) |
+| **Budget Trip Templates** | **Submit New Place** |
+| ![Budget Trip Templates](./screenshots/05-budget-trip-templates.png) | ![Submit New Place](./screenshots/06-submit-new-place.png) |
+| **Admin Submissions Review** | |
+| ![Admin Submissions Review](./screenshots/07-admin-submissions-review.png) | |
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org/) (App Router) + React
