@@ -1,0 +1,12 @@
+{
+  "/_not-found": "app/_not-found.js",
+  "/login/page": "app/login/page.js",
+  "/explore/page": "app/explore/page.js",
+  "/cities/[cityId]/page": "app/cities/[cityId]/page.js",
+  "/api/generate/route": "app/api/generate/route.js",
+  "/submit/page": "app/submit/page.js",
+  "/templates/[templateId]/page": "app/templates/[templateId]/page.js",
+  "/cities/page": "app/cities/page.js",
+  "/templates/page": "app/templates/page.js",
+  "/page": "app/page.js"
+}
