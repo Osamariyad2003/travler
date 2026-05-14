@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-white text-cocoa-800 antialiased;
+  font-family: var(--font-rubik), Rubik, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-playfair), "Playfair Display", Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  font-family: inherit;
+}
+
+.traveler-marker {
+  @apply flex h-8 w-8 items-center justify-center rounded-full text-base font-semibold text-white shadow-md ring-2 ring-white;
+}
+
+.traveler-marker-warning {
+  @apply ring-red-200;
+}
+
+.skip-link {
+  @apply sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-coral-500 focus:px-3 focus:py-2 focus:text-white;
+}
+
+@layer utilities {
+  /* Cross-browser scrollbar hiding for horizontal carousels. */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  .form-input {
+    @apply mt-1 block w-full rounded-md border border-cocoa-200 bg-white px-3 py-2 text-sm text-cocoa-800 shadow-sm placeholder:text-cocoa-300 focus:border-coral-500 focus:outline-none focus:ring-2 focus:ring-coral-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-cocoa-200 bg-white px-5 py-2.5 text-sm font-semibold text-cocoa-800 transition hover:border-coral-300 hover:text-coral-600;
+  }
+
+  .heading-display {
+    @apply font-display text-4xl font-semibold leading-tight text-cocoa-800 sm:text-5xl;
+  }
+}
