@@ -66,18 +66,6 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 
 ---
 
-## 🏗️ Project Structure
-
-```text
-src/
-├── app/          # Next.js App Router (Pages & API)
-├── components/   # UI & Map Components
-├── lib/          # Utilities, Types & Firebase Logic
-├── styles/       # Global CSS & Tailwind
-└── scripts/      # Data seeding and maintenance tasks
-```
-
----
 
 ## 🤝 Contributing
 
