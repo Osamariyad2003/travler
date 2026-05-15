@@ -34,38 +34,6 @@
 
 ---
 
-## 🚀 Quick Start
-
-### 1. Clone & Install
-```bash
-git clone https://github.com/Osamariyad2003/travler.git
-cd traveler
-npm install
-```
-
-### 2. Environment Setup
-Copy the example environment file and fill in your credentials:
-```bash
-cp .env.example .env.local
-```
-
-| Variable | Required | Purpose |
-| :--- | :---: | :--- |
-| `NEXT_PUBLIC_FIREBASE_*` | Yes* | Database & Authentication |
-| `UNSPLASH_ACCESS_KEY` | No | Destination photography |
-| `PEXELS_API_KEY` | No | Hero background videos |
-| `ANTHROPIC_API_KEY` | No | AI enrichment for new cities |
-
-*\*App falls back to mock data if Firebase is not configured.*
-
-### 3. Run Locally
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to see the result.
-
----
-
 
 ## 🤝 Contributing
 
