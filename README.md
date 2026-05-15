@@ -34,16 +34,6 @@
 
 ---
 
-## 🛠️ Tech Stack
-
--   **Frontend**: [Next.js 14](https://nextjs.org/) (App Router), [React](https://reactjs.org/), [Tailwind CSS](https://tailwindcss.com/)
--   **Maps**: [Leaflet](https://leafletjs.com/), [React-Leaflet](https://react-leaflet.js.org/), [OpenStreetMap](https://www.openstreetmap.org/)
--   **Backend/Auth**: [Firebase](https://firebase.google.com/) (Firestore & Authentication)
--   **AI Engine**: [Anthropic Claude](https://anthropic.com/) (Opus 4.7)
--   **Geocoding/Routing**: [Nominatim](https://nominatim.openstreetmap.org/), [Overpass API](https://overpass-api.de/), [OSRM](https://project-osrm.org/)
-
----
-
 ## 🚀 Quick Start
 
 ### 1. Clone & Install
