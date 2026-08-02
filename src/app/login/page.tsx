@@ -65,6 +65,37 @@ function LoginForm() {
     }
   }, [authLoading, user, nextPath, router]);
 
+  // Picks up the result after a signInWithRedirect() round-trip (popup fallback).
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    const auth = getFirebaseAuth();
+    if (!auth) return;
+    let cancelled = false;
+    void (async () => {
+      const { getRedirectResult } = await import("firebase/auth");
+      try {
+        const result = await getRedirectResult(auth);
+        if (cancelled || !result) return;
+        await upsertUserProfile(
+          result.user.uid,
+          result.user.email ?? "",
+          result.user.displayName ?? result.user.email ?? "Traveler"
+        );
+        setStatus({ type: "success", message: "Signed in with Google." });
+        router.replace(nextPath);
+      } catch (err) {
+        if (cancelled) return;
+        setStatus({
+          type: "error",
+          message: getAuthErrorMessage(err, "Google sign in failed."),
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [nextPath, router]);
+
   async function handleEmailSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isFirebaseConfigured) {
@@ -118,18 +149,35 @@ function LoginForm() {
     try {
       const auth = getFirebaseAuth();
       if (!auth) throw new Error("Auth not available");
-      const { GoogleAuthProvider, signInWithPopup } = await import(
-        "firebase/auth"
-      );
+      const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } =
+        await import("firebase/auth");
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      await upsertUserProfile(
-        result.user.uid,
-        result.user.email ?? "",
-        result.user.displayName ?? result.user.email ?? "Traveler"
-      );
-      setStatus({ type: "success", message: "Signed in with Google." });
-      router.replace(nextPath);
+      try {
+        const result = await signInWithPopup(auth, provider);
+        await upsertUserProfile(
+          result.user.uid,
+          result.user.email ?? "",
+          result.user.displayName ?? result.user.email ?? "Traveler"
+        );
+        setStatus({ type: "success", message: "Signed in with Google." });
+        router.replace(nextPath);
+      } catch (err) {
+        const code =
+          typeof err === "object" && err !== null && "code" in err
+            ? String((err as { code?: unknown }).code)
+            : "";
+        // Popup blocked/unsupported (common on mobile browsers and strict
+        // popup blockers) — fall back to a full-page redirect flow. The
+        // result is picked up by the getRedirectResult effect above.
+        if (
+          code === "auth/popup-blocked" ||
+          code === "auth/operation-not-supported-in-this-environment"
+        ) {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw err;
+      }
     } catch (err) {
       setStatus({
         type: "error",
