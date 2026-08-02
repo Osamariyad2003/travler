@@ -12,7 +12,8 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 
-import { getDb, isFirebaseConfigured } from "./firebase";
+import { getDb } from "./firebase-db";
+import { isFirebaseConfigured } from "./firebase";
 import {
   sampleCities,
   samplePlaces,

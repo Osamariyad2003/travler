@@ -17,8 +17,17 @@ import type { Photo } from "./types";
 const TOKEN = process.env.UNSPLASH_ACCESS_KEY;
 const SOURCE = "Unsplash";
 const UTM = "?utm_source=traveler&utm_medium=referral";
+const REQUEST_TIMEOUT_MS = 8000;
 
 export const isUnsplashConfigured = Boolean(TOKEN);
+
+// Circuit breaker: once Unsplash tells us the key is invalid (401/403) or
+// we're rate-limited (429), stop firing further requests until this expires
+// instead of letting every one of the ~100+ per-page photo lookups round-trip
+// and time out individually (previously caused 90s+ page loads).
+let unavailableUntil = 0;
+const AUTH_ERROR_BACKOFF_MS = 10 * 60 * 1000; // invalid key — retry occasionally in case it's fixed
+const RATE_LIMIT_BACKOFF_MS = 60 * 60 * 1000; // 429 — Unsplash resets hourly
 
 interface UnsplashRaw {
   id: string;
@@ -48,6 +57,7 @@ export async function searchUnsplash(
   count = 1
 ): Promise<Photo[]> {
   if (!TOKEN) return [];
+  if (Date.now() < unavailableUntil) return [];
 
   const url = new URL("https://api.unsplash.com/search/photos");
   url.searchParams.set("query", query);
@@ -55,6 +65,8 @@ export async function searchUnsplash(
   url.searchParams.set("orientation", "landscape");
   url.searchParams.set("content_filter", "high");
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       headers: {
@@ -62,9 +74,15 @@ export async function searchUnsplash(
         "Accept-Version": "v1",
       },
       next: { revalidate: 60 * 60 * 24 },
+      signal: controller.signal,
     });
     if (!res.ok) {
       console.warn(`Unsplash ${res.status} for "${query}"`);
+      if (res.status === 401 || res.status === 403) {
+        unavailableUntil = Date.now() + AUTH_ERROR_BACKOFF_MS;
+      } else if (res.status === 429) {
+        unavailableUntil = Date.now() + RATE_LIMIT_BACKOFF_MS;
+      }
       return [];
     }
     const data = (await res.json()) as { results?: UnsplashRaw[] };
@@ -72,6 +90,8 @@ export async function searchUnsplash(
   } catch (err) {
     console.warn("Unsplash request failed", err);
     return [];
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

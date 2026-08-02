@@ -5,7 +5,6 @@ import { useEffect, useState, Suspense } from "react";
 
 import { useAuthUser } from "@/lib/auth-client";
 import { isFirebaseConfigured, getFirebaseAuth } from "@/lib/firebase";
-import { upsertUserProfile } from "@/lib/firestore";
 
 type Mode = "signin" | "signup";
 
@@ -76,6 +75,7 @@ function LoginForm() {
       try {
         const result = await getRedirectResult(auth);
         if (cancelled || !result) return;
+        const { upsertUserProfile } = await import("@/lib/firestore");
         await upsertUserProfile(
           result.user.uid,
           result.user.email ?? "",
@@ -124,6 +124,7 @@ function LoginForm() {
           email,
           password
         );
+        const { upsertUserProfile } = await import("@/lib/firestore");
         await upsertUserProfile(cred.user.uid, email, name || email);
         setStatus({ type: "success", message: "Account created." });
         router.replace(nextPath);
@@ -154,6 +155,7 @@ function LoginForm() {
       const provider = new GoogleAuthProvider();
       try {
         const result = await signInWithPopup(auth, provider);
+        const { upsertUserProfile } = await import("@/lib/firestore");
         await upsertUserProfile(
           result.user.uid,
           result.user.email ?? "",

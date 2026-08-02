@@ -11,15 +11,14 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "seed": "tsx scripts/seed-firestore.ts",
-    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
-    "predeploy": "npm run build",
-    "deploy": "npx rimraf .next/cache && gh-pages -d .next"
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",
     "firebase": "^10.7.1",
     "leaflet": "^1.9.4",
-    "next": "14.1.0",
+    "lottie-react": "^2.4.1",
+    "next": "14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-leaflet": "^4.2.1"
@@ -32,7 +31,6 @@
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
-    "gh-pages": "^6.3.0",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.6",
     "tsx": "^4.21.0",

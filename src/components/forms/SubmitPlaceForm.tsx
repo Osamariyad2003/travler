@@ -7,7 +7,6 @@ import {
   PLACE_CATEGORIES,
 } from "@/lib/constants";
 import { isFirebaseConfigured } from "@/lib/firebase";
-import { submitPlace } from "@/lib/firestore";
 import type { City, PlaceCategory, PlaceSubmissionInput } from "@/lib/types";
 import {
   parseCoordinate,
@@ -84,6 +83,8 @@ export default function SubmitPlaceForm({
     }
     setErrors({});
     setStatus({ type: "submitting" });
+    // Lazy-import keeps the Firestore SDK out of the initial /submit bundle.
+    const { submitPlace } = await import("@/lib/firestore");
     const submission = await submitPlace(
       userId ?? "anonymous",
       input as PlaceSubmissionInput
