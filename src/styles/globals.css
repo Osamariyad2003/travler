@@ -46,13 +46,65 @@ h3,
 }
 
 @layer utilities {
+
   /* Cross-browser scrollbar hiding for horizontal carousels. */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  @keyframes workflow-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes workflow-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.975);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .workflow-fade-up {
+    animation: workflow-fade-up 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .workflow-scale-in {
+    animation: workflow-scale-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @media (max-width: 640px) {
+    .workflow-fade-up {
+      animation-duration: 290ms;
+    }
+
+    .workflow-scale-in {
+      animation-duration: 340ms;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+
+    .workflow-fade-up,
+    .workflow-scale-in {
+      animation: none;
+    }
   }
 }
 

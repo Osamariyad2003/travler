@@ -64,6 +64,10 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) to see the result.
 
+## ☁️ Deploy (Vercel)
+
+For a production-ready deployment flow tailored to this repo, see [DEPLOY-VERCEL.md](./DEPLOY-VERCEL.md).
+
 ---
 
 ## 🏗️ Project Structure

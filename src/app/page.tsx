@@ -3,6 +3,7 @@ import HeroCarousel, {
   type HeroSlide,
 } from "@/components/home/HeroCarousel";
 import TripPlannerSection from "@/components/home/TripPlannerSection";
+import WorkflowShowcase from "@/components/home/WorkflowShowcase";
 import CityPicker from "@/components/map/CityPicker";
 import { APP_NAME, DEFAULT_CITY_ID } from "@/lib/constants";
 import { fetchCities, fetchTripTemplates } from "@/lib/firestore";
@@ -27,8 +28,8 @@ export default async function HomePage() {
   const heroCities = cities.slice(0, 4);
   const heroPhotos = isUnsplashConfigured
     ? await fetchPhotosByQueries(
-        heroCities.map((c) => `${c.name} ${c.country} travel`)
-      )
+      heroCities.map((c) => `${c.name} ${c.country} travel`)
+    )
     : heroCities.map(() => null);
 
   const slides: HeroSlide[] = heroCities.map((city, idx) => ({
@@ -89,6 +90,8 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <WorkflowShowcase />
 
       <DestinationGallery cities={cities} />
 
