@@ -34,6 +34,7 @@
 
 ---
 
+<<<<<<< HEAD
 ## 🚀 Quick Start
 
 ### 1. Clone & Install
@@ -82,6 +83,8 @@ src/
 ```
 
 ---
+=======
+>>>>>>> 811cd38e84033d6c37aab77d706da38e3388fbe5
 
 ## 🤝 Contributing
 

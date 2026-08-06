@@ -3,6 +3,7 @@ import HeroCarousel, {
   type HeroSlide,
 } from "@/components/home/HeroCarousel";
 import TripPlannerSection from "@/components/home/TripPlannerSection";
+import TravelOrbitSection from "@/components/home/TravelOrbitSection";
 import WorkflowShowcase from "@/components/home/WorkflowShowcase";
 import CityPicker from "@/components/map/CityPicker";
 import { APP_NAME, DEFAULT_CITY_ID } from "@/lib/constants";
@@ -36,6 +37,20 @@ export default async function HomePage() {
     city,
     photo: heroPhotos[idx] ?? null,
   }));
+  const prioritizedOrbitCities = new Map<string, (typeof cities)[number]>();
+  for (const cityId of [
+    DEFAULT_CITY_ID,
+    ...templates.map((template) => template.cityId),
+  ]) {
+    const city = cities.find((item) => item.id === cityId);
+    if (city) {
+      prioritizedOrbitCities.set(city.id, city);
+    }
+  }
+  const orbitCities = [
+    ...prioritizedOrbitCities.values(),
+    ...cities.filter((city) => !prioritizedOrbitCities.has(city.id)),
+  ];
 
   return (
     <div>
@@ -90,6 +105,8 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <TravelOrbitSection cities={orbitCities} />
 
       <WorkflowShowcase />
 
