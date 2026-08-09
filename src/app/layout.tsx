@@ -6,6 +6,7 @@ import "@/styles/globals.css";
 import Footer from "@/components/layout/Footer";
 import Navbar from "@/components/layout/Navbar";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { fetchCities } from "@/lib/firestore";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -27,18 +28,20 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.ico" },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cities = await fetchCities();
+
   return (
     <html lang="en" className={`${playfair.variable} ${rubik.variable}`}>
       <body className="flex min-h-screen flex-col bg-white text-cocoa-800">
         <a href="#main" className="skip-link">
           Skip to content
         </a>
-        <Navbar />
+        <Navbar cities={cities} />
         <main id="main" className="flex-1">
           {children}
         </main>

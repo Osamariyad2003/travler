@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Logo from "@/components/Logo";
 import { useAuthUser, useSignOut } from "@/lib/auth-client";
 import { APP_NAME } from "@/lib/constants";
+import type { City } from "@/lib/types";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -15,15 +16,45 @@ const NAV_LINKS = [
   { href: "/submit", label: "Contribute" },
 ];
 
+const ROTATING_CITY_LIMIT = 12;
+const ROTATE_INTERVAL_MS = 3200;
+
+interface NavbarProps {
+  cities?: City[];
+}
+
 /**
  * Transparent header — no background, no border. Auth-aware: shows
  * Sign in / Sign up for guests, and a friendly greeting + sign-out
  * button for authenticated users.
  */
-export default function Navbar() {
+export default function Navbar({ cities = [] }: NavbarProps) {
   const { user, loading } = useAuthUser();
   const signOut = useSignOut();
   const [signingOut, setSigningOut] = useState(false);
+
+  const rotatingCities = useMemo(
+    () => cities.slice(0, ROTATING_CITY_LIMIT),
+    [cities]
+  );
+  const [cityIndex, setCityIndex] = useState(0);
+
+  useEffect(() => {
+    if (rotatingCities.length < 2) return;
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const id = window.setInterval(() => {
+      setCityIndex((i) => (i + 1) % rotatingCities.length);
+    }, ROTATE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [rotatingCities.length]);
+
+  const spotlightCity = rotatingCities[cityIndex] ?? null;
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -47,13 +78,28 @@ export default function Navbar() {
         aria-label="Primary"
         className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4"
       >
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-display text-xl font-semibold text-cocoa-800"
-        >
-          <Logo className="h-6 w-6 text-coral-500" />
-          <span>{APP_NAME}</span>
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-display text-xl font-semibold text-cocoa-800"
+          >
+            <Logo className="h-6 w-6 text-coral-500" />
+            <span>{APP_NAME}</span>
+          </Link>
+
+          {spotlightCity ? (
+            <Link
+              key={spotlightCity.id}
+              href={`/cities/${spotlightCity.id}`}
+              className="navbar-city-fade hidden items-center gap-1.5 rounded-full border border-coral-100 bg-coral-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-coral-600 transition-colors hover:border-coral-200 hover:bg-coral-100 lg:inline-flex"
+            >
+              <span className="text-coral-400" aria-hidden="true">
+                ✦
+              </span>
+              {spotlightCity.name}, {spotlightCity.country}
+            </Link>
+          ) : null}
+        </div>
 
         <ul className="hidden items-center gap-7 text-sm md:flex">
           {NAV_LINKS.map((link) => (

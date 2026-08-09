@@ -15,6 +15,31 @@
 const OSRM_BASE =
   process.env.OSRM_BASE_URL ?? "https://router.project-osrm.org";
 
+/**
+ * Same self-throttling approach as geo.ts — the public OSRM demo server is
+ * "fair-use only" per its own docs. Only matters when OSRM_BASE_URL isn't
+ * set to a self-hosted instance. Instance-local only; see geo.ts's comment
+ * on createThrottle for the caveat about multi-instance coordination.
+ */
+function createThrottle(minIntervalMs: number) {
+  let queue: Promise<unknown> = Promise.resolve();
+  let last = 0;
+
+  return function throttle<T>(fn: () => Promise<T>): Promise<T> {
+    const run = async (): Promise<T> => {
+      const wait = Math.max(0, minIntervalMs - (Date.now() - last));
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      last = Date.now();
+      return fn();
+    };
+    const result = queue.then(run, run);
+    queue = result.catch(() => undefined);
+    return result;
+  };
+}
+
+const throttleOsrm = createThrottle(300);
+
 export interface RoadPath {
   /** Polyline points in Leaflet order: [lat, lng]. */
   coordinates: Array<[number, number]>;
@@ -66,17 +91,19 @@ export async function routeWalking(
     `?overview=full&geometries=geojson&continue_straight=false`;
 
   try {
-    const res = await fetch(url, {
-      // Cache 24h — same coords always return the same path until OSM updates.
-      next: { revalidate: 60 * 60 * 24 },
-      // Wall-clock timeout so a hanging public-demo doesn't block page render.
-      signal: AbortSignal.timeout(8000),
-      headers: {
-        // OSRM doesn't require this but the public demo's fair-use logs key
-        // off it — identifying ourselves is polite and helps debugging.
-        "User-Agent": "traveler-app (+https://github.com/traveler)",
-      },
-    });
+    const res = await throttleOsrm(() =>
+      fetch(url, {
+        // Cache 24h — same coords always return the same path until OSM updates.
+        next: { revalidate: 60 * 60 * 24 },
+        // Wall-clock timeout so a hanging public-demo doesn't block page render.
+        signal: AbortSignal.timeout(8000),
+        headers: {
+          // OSRM doesn't require this but the public demo's fair-use logs key
+          // off it — identifying ourselves is polite and helps debugging.
+          "User-Agent": "traveler-app (+https://github.com/traveler)",
+        },
+      })
+    );
     if (!res.ok) {
       console.warn(`OSRM ${res.status} for ${stops.length} waypoints`);
       return null;

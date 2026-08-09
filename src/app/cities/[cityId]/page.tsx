@@ -8,6 +8,9 @@ import {
   fetchRoutesForCity,
 } from "@/lib/firestore";
 import { generateCity } from "@/lib/generator";
+import { fetchOneVideo, isPexelsConfigured } from "@/lib/pexels";
+import type { City } from "@/lib/types";
+import { fetchOnePhoto, isUnsplashConfigured } from "@/lib/unsplash";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,6 +18,20 @@ export const revalidate = 0;
 interface CityPageProps {
   params: { cityId: string };
   searchParams: { q?: string };
+}
+
+// Hero banner media for the visited city — a Pexels video with the matching
+// Unsplash photo as its <video poster> / no-video-configured fallback.
+async function fetchCityHeroMedia(city: City) {
+  const [video, photo] = await Promise.all([
+    isPexelsConfigured
+      ? fetchOneVideo(`${city.name} ${city.country} city`)
+      : Promise.resolve(null),
+    isUnsplashConfigured
+      ? fetchOnePhoto(`${city.name} ${city.country} travel`)
+      : Promise.resolve(null),
+  ]);
+  return { video, photo };
 }
 
 export default async function CityPage({
@@ -30,12 +47,15 @@ export default async function CityPage({
 
   // 1. Fully seeded — Firestore has a city AND curated places. Use as-is.
   if (storedCity && storedPlaces.length > 0) {
+    const heroMedia = await fetchCityHeroMedia(storedCity);
     return (
       <CityMapView
         city={storedCity}
         cities={cities}
         places={storedPlaces}
         routes={storedRoutes}
+        heroVideo={heroMedia.video}
+        heroPhoto={heroMedia.photo}
       />
     );
   }
@@ -44,7 +64,10 @@ export default async function CityPage({
   //    Live-generate POIs from OSM, but keep the curated description.
   if (storedCity) {
     const query = `${storedCity.name}, ${storedCity.country}`;
-    const generated = await generateCity({ query, cityId: params.cityId });
+    const [generated, heroMedia] = await Promise.all([
+      generateCity({ query, cityId: params.cityId }),
+      fetchCityHeroMedia(storedCity),
+    ]);
     if (generated) {
       return (
         <CityMapView
@@ -56,6 +79,8 @@ export default async function CityPage({
           }
           generatedTemplates={generated.templates}
           generatedSource={generated.source}
+          heroVideo={heroMedia.video}
+          heroPhoto={heroMedia.photo}
         />
       );
     }
@@ -66,6 +91,8 @@ export default async function CityPage({
         cities={cities}
         places={storedPlaces}
         routes={storedRoutes}
+        heroVideo={heroMedia.video}
+        heroPhoto={heroMedia.photo}
       />
     );
   }
@@ -81,6 +108,7 @@ export default async function CityPage({
     generated.city,
     ...cities.filter((c) => c.id !== generated.city.id),
   ];
+  const heroMedia = await fetchCityHeroMedia(generated.city);
 
   return (
     <CityMapView
@@ -90,6 +118,8 @@ export default async function CityPage({
       routes={generated.routes}
       generatedTemplates={generated.templates}
       generatedSource={generated.source}
+      heroVideo={heroMedia.video}
+      heroPhoto={heroMedia.photo}
     />
   );
 }

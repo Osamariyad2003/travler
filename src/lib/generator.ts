@@ -1,4 +1,8 @@
+import { doc, getDoc, setDoc } from "firebase/firestore";
+
 import { enrichCityWithAi, isAiConfigured } from "./ai";
+import { COLLECTIONS } from "./firestore";
+import { getDb } from "./firebase-db";
 import {
   POI_TARGET,
   fetchOsmPoisAround,
@@ -36,7 +40,41 @@ interface GenerateOptions {
   travelStyle?: TravelStyle;
 }
 
-const cache = new Map<string, GeneratedCityBundle>();
+// L1: fast, but process-local — gone on every serverless cold start and not
+// shared across concurrently-scaled instances.
+const memoryCache = new Map<string, GeneratedCityBundle>();
+
+// L2: Firestore-backed, shared across every instance. This is what actually
+// protects the fair-use-only Nominatim/Overpass/OSRM public endpoints under
+// real concurrent traffic — without it, every cold instance re-generates
+// (and re-hits those endpoints for) the same city independently.
+async function readCachedBundle(
+  cacheKey: string
+): Promise<GeneratedCityBundle | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const snap = await getDoc(doc(db, COLLECTIONS.generatedCityCache, cacheKey));
+    if (!snap.exists()) return null;
+    return snap.data() as GeneratedCityBundle;
+  } catch (err) {
+    console.warn("generateCity: Firestore cache read failed", err);
+    return null;
+  }
+}
+
+async function writeCachedBundle(
+  cacheKey: string,
+  bundle: GeneratedCityBundle
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  try {
+    await setDoc(doc(db, COLLECTIONS.generatedCityCache, cacheKey), bundle);
+  } catch (err) {
+    console.warn("generateCity: Firestore cache write failed", err);
+  }
+}
 
 export async function generateCity({
   query,
@@ -47,8 +85,15 @@ export async function generateCity({
   const slug = cityId ?? slugify(query);
   const days = clampTripDays(tripDays);
   const cacheKey = `${slug}:${days}:${travelStyle}`;
-  const cached = cache.get(cacheKey);
-  if (cached) return cached;
+
+  const memoryHit = memoryCache.get(cacheKey);
+  if (memoryHit) return memoryHit;
+
+  const firestoreHit = await readCachedBundle(cacheKey);
+  if (firestoreHit) {
+    memoryCache.set(cacheKey, firestoreHit);
+    return firestoreHit;
+  }
 
   const geo = await geocodeCity(query);
   if (!geo) return null;
@@ -133,7 +178,8 @@ export async function generateCity({
     templates,
     source: enrichment ? "ai" : "osm-only",
   };
-  cache.set(cacheKey, bundle);
+  memoryCache.set(cacheKey, bundle);
+  await writeCachedBundle(cacheKey, bundle);
   return bundle;
 }
 

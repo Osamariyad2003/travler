@@ -4,11 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import type { City, Photo } from "@/lib/types";
+import type { City, Photo, Video } from "@/lib/types";
 
 export interface HeroSlide {
   city: City;
   photo: Photo | null;
+  video?: Video | null;
 }
 
 interface HeroCarouselProps {
@@ -64,7 +65,18 @@ export default function HeroCarousel({
             }`}
             aria-hidden={idx !== active}
           >
-            {slide.photo ? (
+            {slide.video ? (
+              <video
+                className="h-full w-full object-cover"
+                src={slide.video.url}
+                poster={slide.photo?.url ?? slide.video.posterUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload={idx === 0 ? "auto" : "metadata"}
+              />
+            ) : slide.photo ? (
               <Image
                 src={slide.photo.url}
                 alt={slide.photo.alt}
@@ -176,8 +188,25 @@ export default function HeroCarousel({
           </div>
         ) : null}
 
-        {/* Photo credit, bottom-right */}
-        {current.photo ? (
+        {/* Video/photo credit, bottom-right */}
+        {current.video ? (
+          <p className="absolute bottom-2 right-4 z-10 text-[10px] text-white/60">
+            Video by{" "}
+            {current.video.credit.profileUrl ? (
+              <a
+                href={current.video.credit.profileUrl}
+                rel="noreferrer noopener"
+                target="_blank"
+                className="underline hover:text-coral-300"
+              >
+                {current.video.credit.name}
+              </a>
+            ) : (
+              current.video.credit.name
+            )}{" "}
+            on Pexels
+          </p>
+        ) : current.photo ? (
           <p className="absolute bottom-2 right-4 z-10 text-[10px] text-white/60">
             Photo by{" "}
             {current.photo.credit.profileUrl ? (

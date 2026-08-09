@@ -2,6 +2,39 @@ import type { PlaceCategory } from "./types";
 
 const USER_AGENT = "Traveler-App/0.1 (https://github.com/traveler)";
 
+/**
+ * Serializes calls through a shared queue with a minimum spacing between
+ * them — self-throttling so we don't hammer fair-use-only public endpoints
+ * (Nominatim's usage policy caps anonymous use at ~1 req/sec; Overpass has
+ * no published number but is a shared instance with no SLA).
+ *
+ * Note: this only limits requests *within one warm server instance* — it
+ * doesn't coordinate across concurrently-scaled Vercel instances. The real
+ * protection against a traffic spike is generateCity's Firestore-backed
+ * cache (see generator.ts): most concurrent requests for the same city
+ * should hit that before ever reaching this throttle.
+ */
+function createThrottle(minIntervalMs: number) {
+  let queue: Promise<unknown> = Promise.resolve();
+  let last = 0;
+
+  return function throttle<T>(fn: () => Promise<T>): Promise<T> {
+    const run = async (): Promise<T> => {
+      const wait = Math.max(0, minIntervalMs - (Date.now() - last));
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      last = Date.now();
+      return fn();
+    };
+    const result = queue.then(run, run);
+    // Keep the chain moving even if this call rejects.
+    queue = result.catch(() => undefined);
+    return result;
+  };
+}
+
+const throttleNominatim = createThrottle(1100);
+const throttleOverpass = createThrottle(400);
+
 export interface GeocodedCity {
   name: string;
   country: string;
@@ -30,10 +63,12 @@ export async function geocodeCity(query: string): Promise<GeocodedCity | null> {
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("featuretype", "city");
 
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-    next: { revalidate: 60 * 60 * 24 },
-  });
+  const res = await throttleNominatim(() =>
+    fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      next: { revalidate: 60 * 60 * 24 },
+    })
+  );
   if (!res.ok) return null;
   const arr = (await res.json()) as Array<{
     lat: string;
@@ -150,15 +185,17 @@ export async function fetchOsmPoisAround(
   ).join("\n");
 
   const query = `[out:json][timeout:30];\n(\n${sections}\n);\nout body 600;`;
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": USER_AGENT,
-    },
-    body: `data=${encodeURIComponent(query)}`,
-    next: { revalidate: 60 * 60 * 12 },
-  });
+  const res = await throttleOverpass(() =>
+    fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": USER_AGENT,
+      },
+      body: `data=${encodeURIComponent(query)}`,
+      next: { revalidate: 60 * 60 * 12 },
+    })
+  );
   if (!res.ok) return [];
   const data = (await res.json()) as {
     elements?: Array<{

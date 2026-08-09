@@ -36,6 +36,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Shared cache of live-generated (OSM/Nominatim/Overpass/AI) city
+    // bundles. Written by anonymous visitors' server-side requests (no
+    // auth context available), so this is intentionally open rather than
+    // isAdmin()-gated like the collections above. It only ever holds
+    // derived, non-sensitive map data — worst case of abuse is cache
+    // pollution, not a privilege escalation. Revisit via a Cloud
+    // Function / Admin SDK write path if that becomes a real problem.
+    match /generatedCityCache/{cacheKey} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Users can read/update only their own profile.
     match /users/{userId} {
       allow read, update: if isSignedIn() && request.auth.uid == userId;

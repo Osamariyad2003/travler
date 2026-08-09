@@ -8,12 +8,55 @@ import WorkflowShowcase from "@/components/home/WorkflowShowcase";
 import CityPicker from "@/components/map/CityPicker";
 import { APP_NAME, DEFAULT_CITY_ID } from "@/lib/constants";
 import { fetchCities, fetchTripTemplates } from "@/lib/firestore";
+import { fetchOneVideo, isPexelsConfigured } from "@/lib/pexels";
 import {
   fetchPhotosByQueries,
   isUnsplashConfigured,
 } from "@/lib/unsplash";
 
 export const dynamic = "force-dynamic";
+
+// Fisher-Yates shuffle driven by a seeded PRNG (mulberry32) instead of
+// Math.random — same seed always produces the same order.
+function seededShuffle<T>(items: T[], seed: number): T[] {
+  let state = seed;
+  const rand = () => {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const pool = [...items];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+
+// Small hash of today's UTC date (YYYY-MM-DD) — same all day, changes at
+// midnight, so it's a stable seed for "today's" hero city pick.
+function todaySeed(): number {
+  const today = new Date().toISOString().slice(0, 10);
+  let hash = 0;
+  for (let i = 0; i < today.length; i++) {
+    hash = (Math.imul(hash, 31) + today.charCodeAt(i)) | 0;
+  }
+  return hash;
+}
+
+// A modest, curated pool of visually distinct, well-known budget-travel
+// cities. Picking from a small fixed pool — rather than the full city list —
+// keeps the Unsplash/Pexels queries below mostly *repeating* across
+// visitors and across the day, so Next's 24h fetch-cache actually gets hit
+// instead of firing a fresh (rate-limited) request per visitor.
+const HERO_CITY_POOL_IDS = [
+  "bangkok", "istanbul", "mexico-city", "cape-town",
+  "lisbon", "hanoi", "medellin", "tbilisi",
+  "marrakech", "budapest", "kyoto", "buenos-aires",
+];
 
 export default async function HomePage() {
   const [cities, templates] = await Promise.all([
@@ -24,19 +67,53 @@ export default async function HomePage() {
   const featured =
     cities.find((c) => c.id === DEFAULT_CITY_ID) ?? cities[0] ?? null;
 
-  // Top 4 cities go into the cinematic carousel — same Unsplash queries the
-  // gallery uses, so the second component hits the Next fetch cache.
-  const heroCities = cities.slice(0, 4);
-  const heroPhotos = isUnsplashConfigured
-    ? await fetchPhotosByQueries(
-      heroCities.map((c) => `${c.name} ${c.country} travel`)
-    )
-    : heroCities.map(() => null);
+  // Today's 4 cities for the cinematic hero carousel — same set all day
+  // (for cache-friendliness), rotates to a new set at midnight UTC. Falls
+  // back to the first 4 cities if fewer than 4 curated ids exist in this
+  // deployment's data.
+  const heroPool = HERO_CITY_POOL_IDS.map((id) =>
+    cities.find((c) => c.id === id)
+  ).filter((c): c is (typeof cities)[number] => Boolean(c));
+  const heroCities =
+    heroPool.length >= 4
+      ? seededShuffle(heroPool, todaySeed()).slice(0, 4)
+      : cities.slice(0, 4);
 
+  // A Pexels video per hero city, with a same-query Unsplash photo as the
+  // <video poster> / no-video-configured fallback.
+  const [videoResults, videoPhotos] = await Promise.all([
+    isPexelsConfigured
+      ? Promise.all(
+        heroCities.map((c) => fetchOneVideo(`${c.name} ${c.country} city`))
+      )
+      : Promise.resolve(heroCities.map(() => null)),
+    isUnsplashConfigured
+      ? fetchPhotosByQueries(
+        heroCities.map((c) => `${c.name} ${c.country} travel`)
+      )
+      : Promise.resolve(heroCities.map(() => null)),
+  ]);
   const slides: HeroSlide[] = heroCities.map((city, idx) => ({
     city,
-    photo: heroPhotos[idx] ?? null,
+    photo: videoPhotos[idx] ?? null,
+    video: videoResults[idx] ?? null,
   }));
+
+  // Workflow showcase card backdrops — themed to what each card is actually
+  // about, rather than reusing arbitrary city photos.
+  const workflowQueries = [
+    "travel photography camera",
+    "travel planning notebook desk",
+    "city map navigation",
+  ];
+  const workflowPhotos = isUnsplashConfigured
+    ? await fetchPhotosByQueries(workflowQueries)
+    : workflowQueries.map(() => null);
+  const workflowImages = {
+    shoot: workflowPhotos[0] ?? null,
+    "call-sheets": workflowPhotos[1] ?? null,
+    locations: workflowPhotos[2] ?? null,
+  };
   const prioritizedOrbitCities = new Map<string, (typeof cities)[number]>();
   for (const cityId of [
     DEFAULT_CITY_ID,
@@ -108,7 +185,7 @@ export default async function HomePage() {
 
       <TravelOrbitSection cities={orbitCities} />
 
-      <WorkflowShowcase />
+      <WorkflowShowcase images={workflowImages} />
 
       <DestinationGallery cities={cities} />
 

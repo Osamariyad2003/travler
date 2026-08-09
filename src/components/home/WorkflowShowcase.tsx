@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Lottie from "lottie-react";
@@ -8,6 +9,7 @@ import type { LottieRefCurrentProps } from "lottie-react";
 import callSheetsAnimation from "@/lottie/call-sheets.json";
 import locationsMapAnimation from "@/lottie/locations-map.json";
 import shootPlanAnimation from "@/lottie/shoot-plan.json";
+import type { Photo } from "@/lib/types";
 
 type ShowcaseId = "shoot" | "call-sheets" | "locations";
 
@@ -124,11 +126,13 @@ function Illustration({
     animationData,
     animationSpeed,
     inView,
+    photo,
 }: {
     accent: string;
     animationData: object;
     animationSpeed: number;
     inView: boolean;
+    photo?: Photo | null;
 }) {
     const lottieRef = useRef<LottieRefCurrentProps | null>(null);
     const [supportsHover, setSupportsHover] = useState(false);
@@ -194,6 +198,15 @@ function Illustration({
             }
             aria-hidden="true"
         >
+            {photo ? (
+                <Image
+                    src={photo.url}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="absolute inset-0 object-cover opacity-40 mix-blend-luminosity"
+                />
+            ) : null}
             <div
                 className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/20 blur-sm"
                 style={supportsHover
@@ -248,6 +261,12 @@ function Illustration({
                     </div>
                 </div>
             </div>
+
+            {photo ? (
+                <p className="relative z-10 mt-3 text-right text-[10px] text-white/60">
+                    Photo by {photo.credit.name} on Unsplash
+                </p>
+            ) : null}
         </div>
     );
 }
@@ -264,7 +283,11 @@ const ANIMATION_SPEED_BY_ID: Record<ShowcaseId, number> = {
     locations: 0.8,
 };
 
-export default function WorkflowShowcase() {
+interface WorkflowShowcaseProps {
+    images?: Partial<Record<ShowcaseId, Photo | null>>;
+}
+
+export default function WorkflowShowcase({ images }: WorkflowShowcaseProps) {
     const [activeId, setActiveId] = useState<ShowcaseId>("shoot");
     const sectionRef = useRef<HTMLElement | null>(null);
     const [inView, setInView] = useState(true);
@@ -366,6 +389,7 @@ export default function WorkflowShowcase() {
                                     animationData={ANIMATION_BY_ID[active.id]}
                                     animationSpeed={activeAnimationSpeed}
                                     inView={inView}
+                                    photo={images?.[active.id] ?? null}
                                 />
                             </div>
                         </div>

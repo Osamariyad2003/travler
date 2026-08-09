@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import CitySelector from "@/components/map/CitySelector";
 import MapFilters from "@/components/map/MapFilters";
@@ -9,7 +9,10 @@ import RoutePanel from "@/components/map/RoutePanel";
 import PlaceList from "@/components/places/PlaceList";
 import TripTemplateCard from "@/components/templates/TripTemplateCard";
 import { PLACE_CATEGORIES } from "@/lib/constants";
-import type { City, Place, PlaceCategory, Route } from "@/lib/types";
+import type { City, Photo, Place, PlaceCategory, Route, Video } from "@/lib/types";
+
+const TITLE_ROTATE_LIMIT = 6;
+const TITLE_ROTATE_INTERVAL_MS = 3200;
 
 const TravelerMap = dynamic(() => import("@/components/map/TravelerMap"), {
   ssr: false,
@@ -27,6 +30,8 @@ interface CityMapViewProps {
   routes: Route[];
   generatedTemplates?: import("@/lib/types").TripTemplate[];
   generatedSource?: "ai" | "osm-only";
+  heroVideo?: Video | null;
+  heroPhoto?: Photo | null;
 }
 
 export default function CityMapView({
@@ -36,12 +41,47 @@ export default function CityMapView({
   routes,
   generatedTemplates,
   generatedSource,
+  heroVideo,
+  heroPhoto,
 }: CityMapViewProps) {
   const [active, setActive] = useState<Set<PlaceCategory>>(
     () => new Set(PLACE_CATEGORIES)
   );
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [recenterToken, setRecenterToken] = useState(0);
+
+  // Big header title cycles through a handful of other cities purely for
+  // decoration — the map, places, and description below always stay on the
+  // actual selected `city`. Index 0 is always the real city, so the page
+  // never paints a mismatched title on first render.
+  const titleCities = useMemo(() => {
+    const others = cities
+      .filter((c) => c.id !== city.id)
+      .slice(0, TITLE_ROTATE_LIMIT - 1);
+    return [city, ...others];
+  }, [city, cities]);
+  const [titleIndex, setTitleIndex] = useState(0);
+
+  useEffect(() => {
+    setTitleIndex(0);
+  }, [city.id]);
+
+  useEffect(() => {
+    if (titleCities.length < 2) return;
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const id = window.setInterval(() => {
+      setTitleIndex((i) => (i + 1) % titleCities.length);
+    }, TITLE_ROTATE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [titleCities, city.id]);
+
+  const displayedTitleCity = titleCities[titleIndex] ?? city;
 
   const filteredPlaces = useMemo(
     () => places.filter((p) => active.has(p.category)),
@@ -59,15 +99,59 @@ export default function CityMapView({
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-10">
+      {heroVideo || heroPhoto ? (
+        <section
+          className="relative isolate -mx-6 h-56 overflow-hidden rounded-b-3xl shadow-card sm:h-72 lg:h-80"
+          aria-hidden="true"
+        >
+          {heroVideo ? (
+            <video
+              className="h-full w-full object-cover"
+              src={heroVideo.url}
+              poster={heroPhoto?.url ?? heroVideo.posterUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+            />
+          ) : heroPhoto ? (
+            // Full-bleed cover banner — next/image's fixed sizing fights this
+            // absolutely-positioned crop, so a plain <img> keeps it simple.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={heroPhoto.url}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-cocoa-900/70 via-cocoa-900/10 to-transparent" />
+
+          {(heroVideo?.credit ?? heroPhoto?.credit) ? (
+            <p className="absolute bottom-2 right-4 z-10 text-[10px] text-white/70">
+              {heroVideo ? "Video" : "Photo"} by{" "}
+              {(heroVideo ?? heroPhoto)?.credit.name} on{" "}
+              {heroVideo ? "Pexels" : "Unsplash"}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       <header className="flex flex-wrap items-end justify-between gap-6">
         <div className="space-y-4">
           <CitySelector cities={cities} selectedId={city.id} />
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-coral-600">
-              {city.country}
+            <p
+              key={`${displayedTitleCity.id}-country`}
+              className="navbar-city-fade text-xs font-semibold uppercase tracking-widest text-coral-600"
+            >
+              {displayedTitleCity.country}
             </p>
-            <h1 className="font-display text-4xl font-semibold text-cocoa-800 sm:text-5xl">
-              {city.name}
+            <h1
+              key={displayedTitleCity.id}
+              className="navbar-city-fade font-display text-4xl font-semibold text-cocoa-800 sm:text-5xl"
+            >
+              {displayedTitleCity.name}
             </h1>
             <div className="mt-3 h-px w-20 bg-coral-300" />
             <p className="mt-3 max-w-2xl text-sm text-cocoa-500">

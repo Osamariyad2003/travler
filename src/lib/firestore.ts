@@ -36,6 +36,11 @@ export const COLLECTIONS = {
   routes: "routes",
   tripTemplates: "tripTemplates",
   submissions: "submissions",
+  // Cache of live-generated (OSM/Nominatim/Overpass/AI) city bundles, keyed
+  // by `${slug}:${days}:${travelStyle}`. Shared across serverless instances
+  // so a cold-started function doesn't re-hit the fair-use-only OSM/Overpass
+  // public endpoints for a city another instance already generated.
+  generatedCityCache: "generatedCityCache",
 } as const;
 
 function mapDoc<T>(id: string, data: DocumentData): T {
