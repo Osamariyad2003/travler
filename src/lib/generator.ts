@@ -1,6 +1,5 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-import { enrichCityWithAi, isAiConfigured } from "./ai";
 import { COLLECTIONS } from "./firestore";
 import { getDb } from "./firebase-db";
 import {
@@ -29,7 +28,7 @@ export interface GeneratedCityBundle {
   places: Place[];
   routes: Route[];
   templates: TripTemplate[];
-  source: "ai" | "osm-only";
+  source: "osm-only";
 }
 
 interface GenerateOptions {
@@ -111,16 +110,6 @@ export async function generateCity({
   if (pois.length === 0) return null;
 
   const trimmed = pois.slice(0, POI_TARGET);
-  const enrichment = isAiConfigured
-    ? await enrichCityWithAi({
-        cityName: geo.name,
-        country: geo.country,
-        poiNames: trimmed.map((p) => p.name),
-        tripDays: days,
-        travelStyle,
-      })
-    : null;
-
   const now = Date.now();
 
   const city: City = {
@@ -130,43 +119,30 @@ export async function generateCity({
     centerLatitude: geo.latitude,
     centerLongitude: geo.longitude,
     defaultZoom: 13,
-    currency: enrichment?.currency || "Local",
-    description:
-      enrichment?.description ||
-      `Map of ${geo.name} generated from OpenStreetMap data. Showing free activities, cheap food, public transport, and viewpoints near the city centre.`,
+    currency: "Local",
+    description: `Map of ${geo.name} generated from OpenStreetMap data. Showing free activities, cheap food, public transport, and viewpoints near the city centre.`,
   };
 
-  const enrichmentByName = new Map<string, NonNullable<typeof enrichment>["places"][number]>();
-  if (enrichment) {
-    for (const p of enrichment.places) {
-      enrichmentByName.set(normalizeName(p.name), p);
-    }
-  }
+  const places: Place[] = trimmed.map((poi) => ({
+    id: `${slug}-${slugify(poi.name)}-${shortId(poi.osmId)}`,
+    cityId: slug,
+    name: poi.name,
+    category: poi.category,
+    latitude: poi.latitude,
+    longitude: poi.longitude,
+    estimatedCost: defaultCost(poi),
+    description: defaultDescription(poi),
+    localTip:
+      "Verify opening hours before visiting — OpenStreetMap data is community-edited.",
+    openingHours: poi.tags.opening_hours,
+    source: "OpenStreetMap",
+    status: "approved",
+    createdAt: now,
+    updatedAt: now,
+  }));
 
-  const places: Place[] = trimmed.map((poi) => {
-    const enriched = enrichmentByName.get(normalizeName(poi.name));
-    return {
-      id: `${slug}-${slugify(poi.name)}-${shortId(poi.osmId)}`,
-      cityId: slug,
-      name: poi.name,
-      category: poi.category,
-      latitude: poi.latitude,
-      longitude: poi.longitude,
-      estimatedCost: enriched?.estimatedCost ?? defaultCost(poi),
-      description: enriched?.description ?? defaultDescription(poi),
-      localTip:
-        enriched?.localTip ??
-        "Verify opening hours before visiting — OpenStreetMap data is community-edited.",
-      openingHours: enriched?.openingHours ?? poi.tags.opening_hours,
-      source: "OpenStreetMap" + (enrichment ? " + Gemini" : ""),
-      status: "approved",
-      createdAt: now,
-      updatedAt: now,
-    };
-  });
-
-  const routes = await buildRoute(slug, places, enrichment);
-  const templates = buildTemplate(slug, city, places, enrichment, {
+  const routes = await buildRoute(slug, places);
+  const templates = buildTemplate(slug, city, places, {
     tripDays: days,
     travelStyle,
   });
@@ -176,15 +152,11 @@ export async function generateCity({
     places,
     routes,
     templates,
-    source: enrichment ? "ai" : "osm-only",
+    source: "osm-only",
   };
   memoryCache.set(cacheKey, bundle);
   await writeCachedBundle(cacheKey, bundle);
   return bundle;
-}
-
-function normalizeName(input: string): string {
-  return input.trim().toLowerCase();
 }
 
 function shortId(input: string): string {
@@ -218,23 +190,11 @@ function defaultDescription(poi: OsmPoi): string {
     : "Mapped from OpenStreetMap. Add a description through the submit form.";
 }
 
-async function buildRoute(
-  cityId: string,
-  places: Place[],
-  enrichment: Awaited<ReturnType<typeof enrichCityWithAi>>
-): Promise<Route[]> {
+async function buildRoute(cityId: string, places: Place[]): Promise<Route[]> {
   if (places.length < 2) return [];
   const now = Date.now();
 
-  let stopsSource = places.slice(0, Math.min(5, places.length));
-  if (enrichment?.routeStopOrder?.length) {
-    const map = new Map(places.map((p) => [normalizeName(p.name), p]));
-    const ordered = enrichment.routeStopOrder
-      .map((n) => map.get(normalizeName(n)))
-      .filter((p): p is Place => Boolean(p));
-    if (ordered.length >= 2) stopsSource = ordered;
-  }
-
+  const stopsSource = places.slice(0, Math.min(5, places.length));
   const stops: RouteStop[] = stopsSource.map((p) => ({
     name: p.name,
     latitude: p.latitude,
@@ -250,30 +210,25 @@ async function buildRoute(
   ]);
   const roadPath = await routeWalking(stops);
 
-  // Prefer routed values: they're empirically accurate vs. LLM guesses or
-  // crow-flies haversine. But honour the LLM's strings if routing fails AND
-  // the LLM provided one.
   const distanceLabel = roadPath
     ? formatDistance(roadPath.distanceKm)
-    : enrichment?.routeEstimatedDistance ??
-      formatDistance(approxDistance(straightLine));
+    : formatDistance(approxDistance(straightLine));
   const timeLabel = roadPath
     ? formatDuration(roadPath.durationMinutes)
-    : enrichment?.routeEstimatedTime ?? "2 – 3 hours";
+    : "2 – 3 hours";
 
   return [
     {
       id: `${cityId}-generated-walk`,
       cityId,
-      name: enrichment?.routeName ?? `Highlights of ${places[0].cityId}`,
+      name: `Highlights of ${places[0].cityId}`,
       estimatedTime: timeLabel,
       estimatedDistance: distanceLabel,
       estimatedCost: "Free walking",
-      difficulty: enrichment?.routeDifficulty ?? "moderate",
+      difficulty: "moderate",
       stops,
       coordinates: roadPath?.coordinates ?? straightLine,
       description:
-        enrichment?.routeDescription ??
         "Auto-generated walking route connecting the highest-rated free attractions in the city centre.",
       status: "approved",
       createdAt: now,
@@ -286,68 +241,29 @@ function buildTemplate(
   cityId: string,
   city: City,
   places: Place[],
-  enrichment: Awaited<ReturnType<typeof enrichCityWithAi>>,
   options: { tripDays: number; travelStyle: TravelStyle }
 ): TripTemplate[] {
   const now = Date.now();
-  const t = enrichment?.tripTemplate ?? {
-    title: "",
-    days: options.tripDays,
-    estimatedBudget: `Low-cost, varies in ${city.currency}`,
-    itinerary: [],
-    tips: [],
-  };
-  const days = clampTripDays(t?.days || options.tripDays);
-  const fallback = buildFallbackItinerary(days, places);
-  const itinerary =
-    t?.itinerary?.length === days
-      ? t.itinerary
-      : normalizeItinerary(t?.itinerary, fallback);
+  const days = clampTripDays(options.tripDays);
+  const itinerary = buildFallbackItinerary(days, places);
   return [
     {
       id: `${cityId}-generated-template`,
       cityId,
-      title:
-        t?.title ||
-        `${days}-day ${styleLabel(options.travelStyle).toLowerCase()} ${city.name}`,
+      title: `${days}-day ${styleLabel(options.travelStyle).toLowerCase()} ${city.name}`,
       days,
       travelStyle: options.travelStyle,
-      estimatedBudget: t.estimatedBudget || "—",
+      estimatedBudget: `Low-cost, varies in ${city.currency}`,
       itinerary,
-      tips:
-        t?.tips?.length
-          ? t.tips
-          : [
-              "Check opening hours before leaving; generated plans use community map data.",
-              "Keep the route flexible and group nearby stops to save on transport.",
-              "Carry small cash for markets, buses, and inexpensive local food.",
-            ],
+      tips: [
+        "Check opening hours before leaving; generated plans use community map data.",
+        "Keep the route flexible and group nearby stops to save on transport.",
+        "Carry small cash for markets, buses, and inexpensive local food.",
+      ],
       createdAt: now,
       updatedAt: now,
     },
   ];
-}
-
-function normalizeItinerary(
-  generated:
-    | Array<{
-        day: number;
-        title: string;
-        activities: string[];
-      }>
-    | undefined,
-  fallback: TripTemplate["itinerary"]
-): TripTemplate["itinerary"] {
-  if (!generated?.length) return fallback;
-  return fallback.map((fallbackDay, index) => {
-    const generatedDay = generated[index];
-    if (!generatedDay?.activities?.length) return fallbackDay;
-    return {
-      day: index + 1,
-      title: generatedDay.title || fallbackDay.title,
-      activities: generatedDay.activities,
-    };
-  });
 }
 
 function buildFallbackItinerary(

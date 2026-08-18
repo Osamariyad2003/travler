@@ -29,7 +29,7 @@ interface CityMapViewProps {
   places: Place[];
   routes: Route[];
   generatedTemplates?: import("@/lib/types").TripTemplate[];
-  generatedSource?: "ai" | "osm-only";
+  generatedSource?: "osm-only";
   heroVideo?: Video | null;
   heroPhoto?: Photo | null;
 }
@@ -159,9 +159,7 @@ export default function CityMapView({
             </p>
             {generatedSource ? (
               <p className="mt-3 inline-flex items-center gap-1 rounded-full bg-coral-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-coral-700">
-                {generatedSource === "ai"
-                  ? "Generated · OSM + Claude"
-                  : "Generated · OSM"}
+                Generated · OSM
               </p>
             ) : null}
           </div>

@@ -16,19 +16,3 @@ export function titleCase(input: string): string {
     )
     .join(" ");
 }
-
-export function safeJsonParse<T = unknown>(input: string): T | null {
-  try {
-    return JSON.parse(input) as T;
-  } catch {
-    // Try to find a JSON block inside fences or extra prose.
-    const fence = input.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const candidate = fence?.[1] ?? input.match(/[\[{][\s\S]*[\]}]/)?.[0];
-    if (!candidate) return null;
-    try {
-      return JSON.parse(candidate) as T;
-    } catch {
-      return null;
-    }
-  }
-}

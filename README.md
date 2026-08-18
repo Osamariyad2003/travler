@@ -14,7 +14,7 @@
 ## ✨ Key Features
 
 -   📍 **Smart Map Discovery**: Interactive 2D Leaflet map powered by OpenStreetMap (zero paid map APIs).
--   🤖 **AI-Generated Guides**: Type any city to generate a live map enriched with local tips and budget itineraries (powered by Anthropic Claude).
+-   🗺️ **Live City Generation**: Type any city to generate a live map from OpenStreetMap data — free activities, cheap food, transit, and a starter itinerary, no AI required.
 -   🚶 **Optimized Walking Routes**: Routes follow real streets using OSRM, complete with distance, time, and difficulty metrics.
 -   💸 **Budget Focus**: Dedicated filters for free activities, water refill points, markets, and hostel areas.
 -   ⚠️ **Safety First**: Real-time crowd-sourced safety and scam warnings for every city.
@@ -55,7 +55,6 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_FIREBASE_*` | Yes* | Database & Authentication |
 | `UNSPLASH_ACCESS_KEY` | No | Destination photography |
 | `PEXELS_API_KEY` | No | Hero background videos |
-| `ANTHROPIC_API_KEY` | No | AI enrichment for new cities |
 
 *\*App falls back to mock data if Firebase is not configured.*
 

@@ -34,8 +34,6 @@ In **Project -> Settings -> Environment Variables**, add these keys.
 
 ### Optional (Recommended)
 
-- `ANTHROPIC_API_KEY`
-- `CLAUDE_MODEL` (default if omitted: `claude-opus-4-7`)
 - `UNSPLASH_ACCESS_KEY`
 - `PEXELS_API_KEY`
 - `OSRM_BASE_URL` (optional custom router, otherwise public OSRM is used)
@@ -68,7 +66,7 @@ Open your Vercel URL and verify:
 2. `/cities` renders map and city list.
 3. `/templates` renders trip templates.
 4. `/explore` loads and can open place details.
-5. (If Anthropic key is set) `/api/generate` responds for a city query.
+5. `/api/generate` responds for a city query (OSM-based, no key required).
 
 Quick API check:
 
@@ -89,12 +87,6 @@ This app uses dynamic Next.js routes and API handlers. Deploy on Vercel, not Git
 - Re-check all `NEXT_PUBLIC_FIREBASE_*` values.
 - Confirm rules were deployed (`npm run deploy:rules`).
 - Confirm authenticated user documents exist in `/users` if testing admin-only flows.
-
-### AI Generation Not Working
-
-- Verify `ANTHROPIC_API_KEY` is set in Vercel.
-- Redeploy after adding env vars.
-- If needed, set `CLAUDE_MODEL` explicitly.
 
 ### No Photos / Hero Video
 
