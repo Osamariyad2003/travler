@@ -20,19 +20,41 @@ function safeNext(raw: string | null): string {
   return raw;
 }
 
-function getAuthErrorMessage(err: unknown, fallback: string) {
+/**
+ * Turns a raw Firebase Auth error into a message safe to show end users —
+ * never the internal `auth/xxx` code or Firebase's own wording. The actual
+ * error (with full diagnostic detail for `unauthorized-domain`) always goes
+ * to the console instead, for developers to find in devtools.
+ */
+function getAuthErrorMessage(err: unknown, fallback: string): string {
   const code =
     typeof err === "object" && err !== null && "code" in err
       ? String((err as { code?: unknown }).code)
       : "";
 
-  if (code === "auth/unauthorized-domain") {
-    const host =
-      typeof window !== "undefined" ? window.location.hostname : "this domain";
-    return `Firebase does not authorize ${host} for Google sign in. In Firebase Console, open Authentication > Settings > Authorized domains and add ${host}. For local development, add both localhost and 127.0.0.1 if you use either URL.`;
+  switch (code) {
+    case "auth/unauthorized-domain": {
+      const host =
+        typeof window !== "undefined"
+          ? window.location.hostname
+          : "this domain";
+      console.error(
+        `Firebase Authentication does not authorize ${host}. Add it under Firebase Console → Authentication → Settings → Authorized domains.`
+      );
+      return "Google sign-in is temporarily unavailable. Please try again or use another sign-in method.";
+    }
+    case "auth/popup-blocked":
+      return "Your browser blocked the sign-in popup. Please allow popups for this site and try again.";
+    case "auth/popup-closed-by-user":
+      return "Sign-in was cancelled before it finished. Please try again.";
+    case "auth/network-request-failed":
+      return "Network error — check your connection and try again.";
+    default:
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Auth error:", err);
+      }
+      return fallback;
   }
-
-  return err instanceof Error ? err.message : fallback;
 }
 
 function LoginForm() {
