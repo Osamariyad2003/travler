@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Could not generate a map for that city — geocoding or POI lookup failed.",
+          "Could not generate a map for that city — geocoding failed. Please check spelling.",
       },
       { status: 404 }
     );

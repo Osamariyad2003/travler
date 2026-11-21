@@ -98,7 +98,7 @@ export async function generateCity({
   if (!geo) return null;
 
   let pois = await fetchOsmPoisAround(geo.latitude, geo.longitude, 5000);
-  if (pois.length < POI_TARGET * 0.7) {
+  if (pois.length < 8) {
     // Sparse city centre — widen the search radius to fill out the map.
     const expanded = await fetchOsmPoisAround(
       geo.latitude,
@@ -181,6 +181,7 @@ function defaultCost(poi: OsmPoi): string {
 }
 
 function defaultDescription(poi: OsmPoi): string {
+  if (poi.tags.description) return poi.tags.description;
   const tagBits: string[] = [];
   if (poi.tags.cuisine) tagBits.push(`cuisine: ${poi.tags.cuisine}`);
   if (poi.tags.historic) tagBits.push(`historic: ${poi.tags.historic}`);
