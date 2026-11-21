@@ -4,7 +4,7 @@
  * sampleRoutes, sampleTripTemplates into the Traveler project.
  *
  * Run:
- *   npx tsx scripts/seed-via-gcloud.ts
+ *   NEXT_PUBLIC_FIREBASE_PROJECT_ID=<your-project-id> npx tsx scripts/seed-via-gcloud.ts
  *
  * Pre-flight: `gcloud auth login` must have been run as a user account that
  * has Editor or Datastore Owner role on the Firebase project.
@@ -19,7 +19,15 @@ import {
   sampleTripTemplates,
 } from "../src/lib/sampleData";
 
-const PROJECT_ID = "traveler-app-5bb74";
+const PROJECT_ID =
+  process.env.FIREBASE_PROJECT_ID ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+if (!PROJECT_ID) {
+  console.error(
+    "Missing Firebase project ID. Set NEXT_PUBLIC_FIREBASE_PROJECT_ID (or FIREBASE_PROJECT_ID) " +
+      "in your environment, e.g. via .env.local, before running this script.",
+  );
+  process.exit(1);
+}
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const GCLOUD_PATH_WIN =
