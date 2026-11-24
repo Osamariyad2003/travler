@@ -36,13 +36,15 @@ function seededShuffle<T>(items: T[], seed: number): T[] {
   return pool;
 }
 
-// Small hash of today's UTC date (YYYY-MM-DD) — same all day, changes at
-// midnight, so it's a stable seed for "today's" hero city pick.
-function todaySeed(): number {
-  const today = new Date().toISOString().slice(0, 10);
+// Hash of the current UTC hour (YYYY-MM-DDTHH) — rotates the hero pick ~24
+// times a day instead of once, so repeat visitors through the day actually
+// get shifted selections while the pool stays small enough for Pexels /
+// Unsplash fetch-cache hits.
+function hourlySeed(): number {
+  const stamp = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
   let hash = 0;
-  for (let i = 0; i < today.length; i++) {
-    hash = (Math.imul(hash, 31) + today.charCodeAt(i)) | 0;
+  for (let i = 0; i < stamp.length; i++) {
+    hash = (Math.imul(hash, 31) + stamp.charCodeAt(i)) | 0;
   }
   return hash;
 }
@@ -76,7 +78,7 @@ export default async function HomePage() {
   ).filter((c): c is (typeof cities)[number] => Boolean(c));
   const heroCities =
     heroPool.length >= 4
-      ? seededShuffle(heroPool, todaySeed()).slice(0, 4)
+      ? seededShuffle(heroPool, hourlySeed()).slice(0, 4)
       : cities.slice(0, 4);
 
   // A Pexels video per hero city, with a same-query Unsplash photo as the

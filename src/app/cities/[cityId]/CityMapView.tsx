@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
 import CitySelector from "@/components/map/CitySelector";
+import LiveTripButton, { type LiveTrip } from "@/components/map/LiveTripButton";
 import MapFilters from "@/components/map/MapFilters";
 import RoutePanel from "@/components/map/RoutePanel";
 import PlaceList from "@/components/places/PlaceList";
@@ -49,6 +50,7 @@ export default function CityMapView({
   );
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [recenterToken, setRecenterToken] = useState(0);
+  const [liveTrip, setLiveTrip] = useState<LiveTrip | null>(null);
 
   // Big header title cycles through a handful of other cities purely for
   // decoration — the map, places, and description below always stay on the
@@ -181,10 +183,21 @@ export default function CityMapView({
             routes={routes}
             selectedRouteId={selectedRouteId}
             recenterToken={recenterToken}
+            liveTrip={liveTrip}
           />
         </div>
 
         <aside className="order-1 space-y-4 lg:order-2">
+          <LiveTripButton
+            cityCenter={{
+              latitude: city.centerLatitude,
+              longitude: city.centerLongitude,
+            }}
+            places={places}
+            liveTrip={liveTrip}
+            onStart={setLiveTrip}
+            onClear={() => setLiveTrip(null)}
+          />
           <MapFilters
             active={active}
             onToggle={toggle}

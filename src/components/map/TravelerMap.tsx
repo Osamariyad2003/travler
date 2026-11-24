@@ -9,6 +9,8 @@ import {
 } from "@/lib/constants";
 import type { City, Place, Route } from "@/lib/types";
 
+import type { LiveTrip } from "./LiveTripButton";
+import LiveTripLayer from "./LiveTripLayer";
 import MapMarker from "./MapMarker";
 import RouteLayer from "./RouteLayer";
 
@@ -18,6 +20,7 @@ interface TravelerMapProps {
   routes: Route[];
   selectedRouteId: string | null;
   recenterToken: number;
+  liveTrip?: LiveTrip | null;
 }
 
 function RecenterController({
@@ -48,6 +51,7 @@ export default function TravelerMap({
   routes,
   selectedRouteId,
   recenterToken,
+  liveTrip,
 }: TravelerMapProps) {
   const center = useMemo<[number, number]>(
     () => [city.centerLatitude, city.centerLongitude],
@@ -75,6 +79,7 @@ export default function TravelerMap({
       {places.map((place) => (
         <MapMarker key={place.id} place={place} />
       ))}
+      {liveTrip ? <LiveTripLayer trip={liveTrip} /> : null}
     </MapContainer>
   );
 }

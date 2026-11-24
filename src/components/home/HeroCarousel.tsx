@@ -17,32 +17,54 @@ interface HeroCarouselProps {
   intervalMs?: number;
 }
 
+/**
+ * Client-side Fisher–Yates — runs once on mount so every page load gets a
+ * freshly randomised slide order, even within the same server-side hero
+ * selection window.
+ */
+function shuffleOnce<T>(items: T[]): T[] {
+  const pool = [...items];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+
 export default function HeroCarousel({
   slides,
   intervalMs = 6000,
 }: HeroCarouselProps) {
+  // Start with the server-rendered order so hydration matches; swap to a
+  // random order AFTER mount so each client visit still sees shifted
+  // videos. Doing this in a useEffect keeps SSR and the first client render
+  // identical — React won't warn about mismatched <video src>.
+  const [randomisedSlides, setRandomisedSlides] = useState<HeroSlide[]>(slides);
+  useEffect(() => {
+    setRandomisedSlides(shuffleOnce(slides));
+  }, [slides]);
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
+  const count = randomisedSlides.length;
+
   const next = useCallback(() => {
-    setActive((i) => (slides.length === 0 ? 0 : (i + 1) % slides.length));
-  }, [slides.length]);
+    setActive((i) => (count === 0 ? 0 : (i + 1) % count));
+  }, [count]);
 
   const prev = useCallback(() => {
-    setActive((i) =>
-      slides.length === 0 ? 0 : (i - 1 + slides.length) % slides.length
-    );
-  }, [slides.length]);
+    setActive((i) => (count === 0 ? 0 : (i - 1 + count) % count));
+  }, [count]);
 
   // Autoplay — pause on hover/focus to respect "user is reading the slide"
   useEffect(() => {
-    if (paused || slides.length <= 1) return;
+    if (paused || count <= 1) return;
     const id = window.setTimeout(next, intervalMs);
     return () => window.clearTimeout(id);
-  }, [active, paused, intervalMs, next, slides.length]);
+  }, [active, paused, intervalMs, next, count]);
 
-  if (slides.length === 0) return null;
-  const current = slides[active];
+  if (count === 0) return null;
+  const current = randomisedSlides[active];
 
   return (
     <section
@@ -57,7 +79,7 @@ export default function HeroCarousel({
       <div className="relative h-[640px] w-full sm:h-[760px]">
         {/* Stack each slide image absolutely, fade between them. Keeping all
             in the DOM avoids remount + re-decode flicker on every transition. */}
-        {slides.map((slide, idx) => (
+        {randomisedSlides.map((slide, idx) => (
           <div
             key={slide.city.id}
             className={`absolute inset-0 transition-opacity duration-1000 ${
@@ -125,7 +147,7 @@ export default function HeroCarousel({
         </div>
 
         {/* Carousel controls */}
-        {slides.length > 1 ? (
+        {count > 1 ? (
           <div className="absolute bottom-12 left-0 right-0 z-10 flex items-center justify-center gap-6">
             <button
               type="button"
@@ -149,7 +171,7 @@ export default function HeroCarousel({
               </svg>
             </button>
             <div className="flex items-center gap-2">
-              {slides.map((slide, idx) => (
+              {randomisedSlides.map((slide, idx) => (
                 <button
                   key={slide.city.id}
                   type="button"
