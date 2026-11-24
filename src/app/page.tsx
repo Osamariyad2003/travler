@@ -64,18 +64,20 @@ export default async function HomePage() {
   const featured =
     cities.find((c) => c.id === DEFAULT_CITY_ID) ?? cities[0] ?? null;
 
-  // Fetch a 12-city pool for the hero so the client-side carousel can
-  // display 6 at a time AND swap in a different 6 after every full lap —
-  // the "new videos after every six" behaviour. Preferred ids first, rest
-  // of the catalogue behind them; seed is per-request so every refresh
-  // shifts the whole pool too.
-  const HERO_FETCH_COUNT = 12;
+  // Hero selection: pick 4 random cities per request from a candidate pool
+  // of up to 80 cities (preferred ids first, the rest of the catalogue
+  // behind them). We only fetch Pexels for the 4 we'll actually show —
+  // fetching 80 videos per request would blow past Pexels rate limits —
+  // and the random seed re-rolls per request, so every refresh calls
+  // another 4 videos.
+  const HERO_FETCH_COUNT = 4;
+  const HERO_POOL_CAP = 80;
   const preferred = HERO_PREFERRED_IDS.map((id) =>
     cities.find((c) => c.id === id)
   ).filter((c): c is (typeof cities)[number] => Boolean(c));
   const preferredIds = new Set(preferred.map((c) => c.id));
   const rest = cities.filter((c) => !preferredIds.has(c.id));
-  const fullPool = [...preferred, ...rest];
+  const fullPool = [...preferred, ...rest].slice(0, HERO_POOL_CAP);
   const heroCities =
     fullPool.length >= HERO_FETCH_COUNT
       ? seededShuffle(fullPool, requestSeed()).slice(0, HERO_FETCH_COUNT)

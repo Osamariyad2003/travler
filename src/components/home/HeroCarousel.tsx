@@ -49,7 +49,7 @@ function nextWindow<T>(pool: T[], current: T[], size: number): T[] {
 export default function HeroCarousel({
   slides,
   intervalMs = 6000,
-  windowSize = 6,
+  windowSize = 4,
 }: HeroCarouselProps) {
   // SSR shows the first `windowSize` slides in server order so the
   // hydrated client HTML matches. After mount, the carousel takes over and
