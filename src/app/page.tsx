@@ -64,21 +64,22 @@ export default async function HomePage() {
   const featured =
     cities.find((c) => c.id === DEFAULT_CITY_ID) ?? cities[0] ?? null;
 
-  // 6 cities for the cinematic hero carousel. Draw from the full `cities`
-  // list — preferred ids first, the rest filled in behind them — so every
-  // refresh gets a random subset from the whole catalogue, not a tight
-  // repeating group of 12.
-  const HERO_SLIDE_COUNT = 6;
+  // Fetch a 12-city pool for the hero so the client-side carousel can
+  // display 6 at a time AND swap in a different 6 after every full lap —
+  // the "new videos after every six" behaviour. Preferred ids first, rest
+  // of the catalogue behind them; seed is per-request so every refresh
+  // shifts the whole pool too.
+  const HERO_FETCH_COUNT = 12;
   const preferred = HERO_PREFERRED_IDS.map((id) =>
     cities.find((c) => c.id === id)
   ).filter((c): c is (typeof cities)[number] => Boolean(c));
   const preferredIds = new Set(preferred.map((c) => c.id));
   const rest = cities.filter((c) => !preferredIds.has(c.id));
-  const heroPool = [...preferred, ...rest];
+  const fullPool = [...preferred, ...rest];
   const heroCities =
-    heroPool.length >= HERO_SLIDE_COUNT
-      ? seededShuffle(heroPool, requestSeed()).slice(0, HERO_SLIDE_COUNT)
-      : heroPool.slice(0, HERO_SLIDE_COUNT);
+    fullPool.length >= HERO_FETCH_COUNT
+      ? seededShuffle(fullPool, requestSeed()).slice(0, HERO_FETCH_COUNT)
+      : fullPool.slice(0, HERO_FETCH_COUNT);
 
   // A Pexels video per hero city, with a same-query Unsplash photo as the
   // <video poster> / no-video-configured fallback.

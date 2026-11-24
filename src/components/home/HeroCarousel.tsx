@@ -15,13 +15,11 @@ export interface HeroSlide {
 interface HeroCarouselProps {
   slides: HeroSlide[];
   intervalMs?: number;
+  /** How many of `slides` to show per lap before swapping in a new set. */
+  windowSize?: number;
 }
 
-/**
- * Client-side Fisher–Yates — runs once on mount so every page load gets a
- * freshly randomised slide order, even within the same server-side hero
- * selection window.
- */
+/** Fisher–Yates — a fresh shuffled copy, leaving the input untouched. */
 function shuffleOnce<T>(items: T[]): T[] {
   const pool = [...items];
   for (let i = pool.length - 1; i > 0; i--) {
@@ -31,36 +29,58 @@ function shuffleOnce<T>(items: T[]): T[] {
   return pool;
 }
 
+/**
+ * Pick a new window of `size` from `pool`, biased against overlap with the
+ * current window. If the pool is larger than 2 * size, no overlap is
+ * possible; otherwise we take as many unseen videos as we can and only
+ * fall back to current-window entries to fill the rest.
+ */
+function nextWindow<T>(pool: T[], current: T[], size: number): T[] {
+  if (pool.length <= size) return shuffleOnce(pool);
+  const currentSet = new Set(current);
+  const unseen = pool.filter((item) => !currentSet.has(item));
+  const shuffledUnseen = shuffleOnce(unseen);
+  if (shuffledUnseen.length >= size) return shuffledUnseen.slice(0, size);
+  // Fill the remainder from the current set (also shuffled, for variety).
+  const fillers = shuffleOnce(current).slice(0, size - shuffledUnseen.length);
+  return [...shuffledUnseen, ...fillers];
+}
+
 export default function HeroCarousel({
   slides,
   intervalMs = 6000,
+  windowSize = 6,
 }: HeroCarouselProps) {
-  // Start with the server-rendered order so hydration matches; swap to a
-  // random order AFTER mount so each client visit still sees shifted
-  // videos. Doing this in a useEffect keeps SSR and the first client render
-  // identical — React won't warn about mismatched <video src>.
-  const [randomisedSlides, setRandomisedSlides] = useState<HeroSlide[]>(slides);
+  // SSR shows the first `windowSize` slides in server order so the
+  // hydrated client HTML matches. After mount, the carousel takes over and
+  // rotates its visible window from the full `slides` pool.
+  const initialWindow = slides.slice(0, windowSize);
+  const [visible, setVisible] = useState<HeroSlide[]>(initialWindow);
+
   useEffect(() => {
-    setRandomisedSlides(shuffleOnce(slides));
+    // First post-hydration render: shuffle the initial window so the lap
+    // order isn't the same across visitors on the same build.
+    setVisible((prev) => shuffleOnce(prev));
   }, [slides]);
+
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  const count = randomisedSlides.length;
+  const count = visible.length;
 
   const next = useCallback(() => {
     setActive((i) => {
       if (count === 0) return 0;
       const nextIdx = (i + 1) % count;
-      // Each full lap, reshuffle so the next cycle shows the videos in a
-      // different order. The pool is small (6), so without this the user
-      // would see the same loop repeat forever on a long visit.
+      // End of a lap → swap in a fresh set of `windowSize` videos from the
+      // bigger server-provided pool. New videos show every six slides, as
+      // requested. If the pool is <= windowSize this just reshuffles.
       if (nextIdx === 0) {
-        setRandomisedSlides((prev) => shuffleOnce(prev));
+        setVisible((current) => nextWindow(slides, current, windowSize));
       }
       return nextIdx;
     });
-  }, [count]);
+  }, [count, slides, windowSize]);
 
   const prev = useCallback(() => {
     setActive((i) => (count === 0 ? 0 : (i - 1 + count) % count));
@@ -74,7 +94,7 @@ export default function HeroCarousel({
   }, [active, paused, intervalMs, next, count]);
 
   if (count === 0) return null;
-  const current = randomisedSlides[active];
+  const current = visible[active];
 
   return (
     <section
@@ -89,7 +109,7 @@ export default function HeroCarousel({
       <div className="relative h-[640px] w-full sm:h-[760px]">
         {/* Stack each slide image absolutely, fade between them. Keeping all
             in the DOM avoids remount + re-decode flicker on every transition. */}
-        {randomisedSlides.map((slide, idx) => (
+        {visible.map((slide, idx) => (
           <div
             key={slide.city.id}
             className={`absolute inset-0 transition-opacity duration-1000 ${
@@ -181,7 +201,7 @@ export default function HeroCarousel({
               </svg>
             </button>
             <div className="flex items-center gap-2">
-              {randomisedSlides.map((slide, idx) => (
+              {visible.map((slide, idx) => (
                 <button
                   key={slide.city.id}
                   type="button"
