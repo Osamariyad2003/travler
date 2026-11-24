@@ -69,17 +69,19 @@ export default async function HomePage() {
   const featured =
     cities.find((c) => c.id === DEFAULT_CITY_ID) ?? cities[0] ?? null;
 
-  // Today's 4 cities for the cinematic hero carousel — same set all day
-  // (for cache-friendliness), rotates to a new set at midnight UTC. Falls
-  // back to the first 4 cities if fewer than 4 curated ids exist in this
-  // deployment's data.
+  // 6 cities for the cinematic hero carousel — a bigger set than we display
+  // at once, so each visit shows more variety and the client can keep
+  // reshuffling as the user watches. Rotates hourly by seeded shuffle for
+  // cache-friendliness; falls back to the first 6 cities when the curated
+  // pool is sparse.
+  const HERO_SLIDE_COUNT = 6;
   const heroPool = HERO_CITY_POOL_IDS.map((id) =>
     cities.find((c) => c.id === id)
   ).filter((c): c is (typeof cities)[number] => Boolean(c));
   const heroCities =
-    heroPool.length >= 4
-      ? seededShuffle(heroPool, hourlySeed()).slice(0, 4)
-      : cities.slice(0, 4);
+    heroPool.length >= HERO_SLIDE_COUNT
+      ? seededShuffle(heroPool, hourlySeed()).slice(0, HERO_SLIDE_COUNT)
+      : cities.slice(0, HERO_SLIDE_COUNT);
 
   // A Pexels video per hero city, with a same-query Unsplash photo as the
   // <video poster> / no-video-configured fallback.

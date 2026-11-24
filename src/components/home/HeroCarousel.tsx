@@ -49,7 +49,17 @@ export default function HeroCarousel({
   const count = randomisedSlides.length;
 
   const next = useCallback(() => {
-    setActive((i) => (count === 0 ? 0 : (i + 1) % count));
+    setActive((i) => {
+      if (count === 0) return 0;
+      const nextIdx = (i + 1) % count;
+      // Each full lap, reshuffle so the next cycle shows the videos in a
+      // different order. The pool is small (6), so without this the user
+      // would see the same loop repeat forever on a long visit.
+      if (nextIdx === 0) {
+        setRandomisedSlides((prev) => shuffleOnce(prev));
+      }
+      return nextIdx;
+    });
   }, [count]);
 
   const prev = useCallback(() => {
