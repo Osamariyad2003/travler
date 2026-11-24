@@ -36,17 +36,13 @@ function seededShuffle<T>(items: T[], seed: number): T[] {
   return pool;
 }
 
-// Hash of the current UTC hour (YYYY-MM-DDTHH) — rotates the hero pick ~24
-// times a day instead of once, so repeat visitors through the day actually
-// get shifted selections while the pool stays small enough for Pexels /
-// Unsplash fetch-cache hits.
-function hourlySeed(): number {
-  const stamp = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
-  let hash = 0;
-  for (let i = 0; i < stamp.length; i++) {
-    hash = (Math.imul(hash, 31) + stamp.charCodeAt(i)) | 0;
-  }
-  return hash;
+// Fresh seed per request — every refresh picks a different subset of the
+// city pool, so the hero videos actually change on each load. The pool is
+// small (12 cities) so the Pexels/Unsplash fetch cache still gets hit for
+// most queries most of the time; only the exact subset the viewer sees
+// shifts.
+function requestSeed(): number {
+  return (Math.random() * 0x7fffffff) | 0;
 }
 
 // A modest, curated pool of visually distinct, well-known budget-travel
@@ -80,7 +76,7 @@ export default async function HomePage() {
   ).filter((c): c is (typeof cities)[number] => Boolean(c));
   const heroCities =
     heroPool.length >= HERO_SLIDE_COUNT
-      ? seededShuffle(heroPool, hourlySeed()).slice(0, HERO_SLIDE_COUNT)
+      ? seededShuffle(heroPool, requestSeed()).slice(0, HERO_SLIDE_COUNT)
       : cities.slice(0, HERO_SLIDE_COUNT);
 
   // A Pexels video per hero city, with a same-query Unsplash photo as the
