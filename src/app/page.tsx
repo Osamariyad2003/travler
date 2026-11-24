@@ -97,6 +97,37 @@ export default async function HomePage() {
       )
       : Promise.resolve(heroCities.map(() => null)),
   ]);
+
+  // Second-chance lookup: any slide that got neither a video nor a photo
+  // (e.g. Panaji — Pexels/Unsplash have no hit for the exact city query)
+  // retries with broader queries so the hero never falls back to the plain
+  // gradient placeholder.
+  const needsFallback = heroCities
+    .map((_, i) => (!videoResults[i] && !videoPhotos[i] ? i : -1))
+    .filter((i) => i >= 0);
+  if (needsFallback.length > 0) {
+    const [fbVideos, fbPhotos] = await Promise.all([
+      isPexelsConfigured
+        ? Promise.all(
+          needsFallback.map((i) =>
+            fetchOneVideo(`${heroCities[i].country} cityscape`).then(
+              (v) => v ?? fetchOneVideo("travel cityscape")
+            )
+          )
+        )
+        : Promise.resolve(needsFallback.map(() => null)),
+      isUnsplashConfigured
+        ? fetchPhotosByQueries(
+          needsFallback.map((i) => `${heroCities[i].country} city skyline`)
+        )
+        : Promise.resolve(needsFallback.map(() => null)),
+    ]);
+    needsFallback.forEach((heroIdx, fbIdx) => {
+      videoResults[heroIdx] = videoResults[heroIdx] ?? fbVideos[fbIdx] ?? null;
+      videoPhotos[heroIdx] = videoPhotos[heroIdx] ?? fbPhotos[fbIdx] ?? null;
+    });
+  }
+
   const slides: HeroSlide[] = heroCities.map((city, idx) => ({
     city,
     photo: videoPhotos[idx] ?? null,
