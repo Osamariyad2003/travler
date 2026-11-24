@@ -45,12 +45,11 @@ function requestSeed(): number {
   return (Math.random() * 0x7fffffff) | 0;
 }
 
-// A modest, curated pool of visually distinct, well-known budget-travel
-// cities. Picking from a small fixed pool — rather than the full city list —
-// keeps the Unsplash/Pexels queries below mostly *repeating* across
-// visitors and across the day, so Next's 24h fetch-cache actually gets hit
-// instead of firing a fresh (rate-limited) request per visitor.
-const HERO_CITY_POOL_IDS = [
+// Preferred hero cities — visually striking, well-represented on Pexels.
+// Used as a priority tier; if the full `cities` list is bigger we fill the
+// rest of the pool from there, so every refresh can draw from dozens of
+// candidates (not the same handful repeating).
+const HERO_PREFERRED_IDS = [
   "bangkok", "istanbul", "mexico-city", "cape-town",
   "lisbon", "hanoi", "medellin", "tbilisi",
   "marrakech", "budapest", "kyoto", "buenos-aires",
@@ -65,19 +64,21 @@ export default async function HomePage() {
   const featured =
     cities.find((c) => c.id === DEFAULT_CITY_ID) ?? cities[0] ?? null;
 
-  // 6 cities for the cinematic hero carousel — a bigger set than we display
-  // at once, so each visit shows more variety and the client can keep
-  // reshuffling as the user watches. Rotates hourly by seeded shuffle for
-  // cache-friendliness; falls back to the first 6 cities when the curated
-  // pool is sparse.
+  // 6 cities for the cinematic hero carousel. Draw from the full `cities`
+  // list — preferred ids first, the rest filled in behind them — so every
+  // refresh gets a random subset from the whole catalogue, not a tight
+  // repeating group of 12.
   const HERO_SLIDE_COUNT = 6;
-  const heroPool = HERO_CITY_POOL_IDS.map((id) =>
+  const preferred = HERO_PREFERRED_IDS.map((id) =>
     cities.find((c) => c.id === id)
   ).filter((c): c is (typeof cities)[number] => Boolean(c));
+  const preferredIds = new Set(preferred.map((c) => c.id));
+  const rest = cities.filter((c) => !preferredIds.has(c.id));
+  const heroPool = [...preferred, ...rest];
   const heroCities =
     heroPool.length >= HERO_SLIDE_COUNT
       ? seededShuffle(heroPool, requestSeed()).slice(0, HERO_SLIDE_COUNT)
-      : cities.slice(0, HERO_SLIDE_COUNT);
+      : heroPool.slice(0, HERO_SLIDE_COUNT);
 
   // A Pexels video per hero city, with a same-query Unsplash photo as the
   // <video poster> / no-video-configured fallback.
